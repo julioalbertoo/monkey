@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Duelo de Insultos — Homenaje a Monkey Island</title>
+<style>
+  :root{
+    --ink:#e8e8f0;
+    --opt:#b8a8e8;
+    --opt-hot:#ffee66;
+    --panel:#000000;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ height:100%; }
+  body{
+    background:#000;
+    color:var(--ink);
+    font-family:"Courier New", ui-monospace, monospace;
+    font-weight:bold;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+  #game{
+    width:min(100vw, 177.7vh);
+    display:flex;
+    flex-direction:column;
+  }
+  #scene{
+    position:relative;
+    width:100%;
+    aspect-ratio:16/9;
+    background:#000;
+  }
+  #cv{
+    width:100%;
+    height:100%;
+    display:block;
+    image-rendering:pixelated;
+    image-rendering:crisp-edges;
+  }
+  /* CRT scanlines */
+  #scene::after{
+    content:"";
+    position:absolute; inset:0;
+    pointer-events:none;
+    background:repeating-linear-gradient(
+      to bottom, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px,
+      rgba(0,0,0,.18) 3px, rgba(0,0,0,0) 4px);
+  }
+  #overlay{
+    position:absolute; inset:0;
+    pointer-events:none;
+    overflow:hidden;
+  }
+  .speech{
+    position:absolute;
+    transform:translate(-50%,-100%);
+    max-width:46%;
+    text-align:center;
+    font-size:clamp(10px, 1.6vw, 18px);
+    line-height:1.35;
+    text-shadow:
+      2px 0 0 #000, -2px 0 0 #000, 0 2px 0 #000, 0 -2px 0 #000,
+      2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+    white-space:pre-line;
+  }
+  .toast{
+    position:absolute;
+    left:50%; top:8%;
+    transform:translateX(-50%);
+    color:#8fe08f;
+    font-size:clamp(9px, 1.4vw, 15px);
+    text-shadow:2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+    text-align:center;
+  }
+  #panel{
+    background:var(--panel);
+    border-top:4px solid #2a1a4a;
+    min-height:26vh;
+    max-height:34vh;
+    padding:.6em 1em .8em;
+    display:flex;
+    flex-direction:column;
+  }
+  #status{
+    color:#6a5a9a;
+    font-size:clamp(9px, 1.3vw, 14px);
+    display:flex;
+    justify-content:space-between;
+    padding-bottom:.4em;
+    letter-spacing:1px;
+  }
+  #choices{
+    overflow-y:auto;
+    flex:1;
+  }
+  #choices::-webkit-scrollbar{ width:10px; }
+  #choices::-webkit-scrollbar-thumb{ background:#3a2a6a; }
+  .opt{
+    color:var(--opt);
+    font-size:clamp(10px, 1.6vw, 17px);
+    line-height:1.5;
+    padding:.15em .2em;
+    cursor:pointer;
+    user-select:none;
+  }
+  .opt:hover, .opt.kb{
+    color:var(--opt-hot);
+  }
+  .opt::before{ content:"► "; color:#5a4a8a; }
+  .opt:hover::before, .opt.kb::before{ color:var(--opt-hot); }
+  .hint{
+    color:#5a4a8a;
+    font-size:clamp(9px, 1.3vw, 13px);
+    padding:.2em;
+  }
+  /* Title screen */
+  #title{
+    position:absolute; inset:0;
+    background:#000;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    cursor:pointer;
+    z-index:10;
+    gap:2vh;
+  }
+  #title h1{
+    font-size:clamp(22px, 5.5vw, 64px);
+    color:#ffd23e;
+    letter-spacing:2px;
+    text-shadow:
+      3px 3px 0 #c0392b, 6px 6px 0 #6a1a10,
+      -2px -2px 0 #7a4a00;
+    line-height:1.1;
+  }
+  #title h2{
+    font-size:clamp(13px, 2.2vw, 26px);
+    color:#b8a8e8;
+    text-shadow:2px 2px 0 #2a1a4a;
+    letter-spacing:3px;
+  }
+  #title .press{
+    margin-top:3vh;
+    color:#e8e8f0;
+    font-size:clamp(11px, 1.8vw, 20px);
+    animation:blink 1.1s steps(2) infinite;
+  }
+  #title .foot{
+    position:absolute;
+    bottom:2.5vh;
+    color:#555;
+    font-size:clamp(8px, 1.2vw, 13px);
+  }
+  @keyframes blink{ 50%{ opacity:0; } }
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="scene">
+    <canvas id="cv" width="320" height="180"></canvas>
+    <div id="overlay"></div>
+    <div id="title">
+      <h2>UN HOMENAJE A THE SECRET OF</h2>
+      <h1>MONKEY ISLAND&trade;</h1>
+      <h2>~ DUELO DE INSULTOS ~</h2>
+      <div class="press">PULSA PARA EMPEZAR</div>
+      <div class="foot">Tributo no oficial de fans &middot; Monkey Island es una marca de Lucasfilm Games</div>
+    </div>
+  </div>
+  <div id="panel">
+    <div id="status"><span id="st-left"></span><span id="st-right"></span></div>
+    <div id="choices"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   DATOS: insultos clásicos del duelo de espadas (ES, MI1)
+   ============================================================ */
+const INSULTS = [
+  { i:"¡Peleas como un ganadero!",
+    c:"Qué apropiado. Tú peleas como una vaca." },
+  { i:"Pronto lucirás mi espada como si fueras un pincho moruno.",
+    c:"Primero deberías dejar de usarla como un plumero." },
+  { i:"Mi pañuelo limpiará tu sangre.",
+    c:"Ah, ¿ya has obtenido ese trabajo de barrendero?" },
+  { i:"¡La gente cae a mis pies al verme llegar!",
+    c:"¿Incluso antes de que huelan tu aliento?" },
+  { i:"Una vez tuve un perro más listo que tú.",
+    c:"Te habrá enseñado todo lo que sabes." },
+  { i:"Nadie me ha sacado sangre jamás, y nadie lo hará.",
+    c:"¿TAN rápido corres?" },
+  { i:"¡No hay palabras para describir lo asqueroso que eres!",
+    c:"Sí que las hay. Sólo que nunca las has aprendido." },
+  { i:"¡He hablado con simios más educados que tú!",
+    c:"Me alegra que asistieras a tu reunión familiar diaria." },
+  { i:"No pienso aguantar tu insolencia aquí sentado.",
+    c:"Ya te están fastidiando otra vez las almorranas, ¿eh?" },
+  { i:"Mi espada es famosa en todo el Caribe.",
+    c:"Qué pena que nadie haya oído hablar de ti." },
+  { i:"Obtuve esta cicatriz en el fragor de la batalla.",
+    c:"Espero que ya hayas aprendido a no tocarte la nariz." },
+  { i:"¿Has dejado ya de usar pañales?",
+    c:"¿Por qué? ¿Acaso querías pedir uno prestado?" },
+];
+
+const DECOYS = [
+  "¡Ah, sí?",
+  "Cállate y pelea.",
+  "Mi madre pelea mejor que tú... espera un momento.",
+  "Yo soy goma, tú pegamento.",
+  "¿Podemos hacer una pausa?",
+  "Eso me ha dolido en los sentimientos.",
+];
+
+const ENEMIES = [
+  { name:"Pirata Callejero", skill:0.30, intro:"¡En garde, mequetrefe!",
+    lose:"¡Vale, vale! ¡Me rindo! ¡Toma mi dignidad!",
+    win:"Vuelve cuando aprendas a insultar, grumete.",
+    pal:{ hair:"#3b2a1a", skin:"#d9a066", shirt:"#7a4a9a", stripe:null,
+          pant:"#3a2a1a", boot:"#241812", belt:"#502a1a", band:"#2e8b57" } },
+  { name:"Espadachín del Muelle", skill:0.50, intro:"Prepárate para morder el polvo del muelle.",
+    lose:"¡Imposible! ¡Nadie me había ganado con la lengua!",
+    win:"Ja. He oído loros con mejores réplicas.",
+    pal:{ hair:"#1a1a1a", skin:"#c68a5a", shirt:"#e8e8f0", stripe:"#b03a3a",
+          pant:"#2a2a4a", boot:"#241812", belt:"#1a1a1a", band:"#2a5ab0" } },
+  { name:"Capitana Malaespina", skill:0.68, intro:"He destripado tiburones más listos que tú.",
+    lose:"Está bien... eres el mejor espadachín de Mêlée Island™.",
+    win:"Vuelve a tu barco, si es que tienes uno.",
+    pal:{ hair:"#7a2a1a", skin:"#e0a878", shirt:"#a02030", stripe:null,
+          pant:"#1a1a2a", boot:"#241812", belt:"#c9a227", band:null } },
+];
+
+const PLAYER_PAL = {
+  hair:"#e8d16a", skin:"#e7b98a", shirt:"#e8e8f0", stripe:null,
+  pant:"#3a3a6c", boot:"#4a2f1b", belt:"#241812", band:null };
+
+const PLAYER_NAME = "Guybrush";
+const WIN_SCORE = 3;
+
+/* ============================================================
+   ESTADO
+   ============================================================ */
+let gameGen = 0;             // token anti-zombis al reiniciar
+const known = { insults:new Set([0,1,2,3]), comebacks:new Set([0,1,2,3]) };
+
+const world = {
+  started:false,
+  enemyIdx:0,
+  pScore:0, eScore:0,
+  player:{ x:75,  pose:"idle", flip:false, pal:PLAYER_PAL },
+  enemy: { x:245, pose:"idle", flip:true,  pal:ENEMIES[0].pal },
+  spark:null,        // {x,y,t}
+};
+
+/* ============================================================
+   RENDER — escena pixelada en canvas 320x180
+   ============================================================ */
+const cv = document.getElementById("cv");
+const g = cv.getContext("2d");
+g.imageSmoothingEnabled = false;
+
+const STARS = [];
+(function(){ let s = 12345;
+  const rnd = () => (s = (s*1103515245+12345) & 0x7fffffff) / 0x7fffffff;
+  for (let i=0;i<70;i++) STARS.push([Math.floor(rnd()*320), Math.floor(rnd()*95), rnd()]);
+})();
+
+const GROUND = 168;
+
+function drawScene(t){
+  // cielo nocturno en bandas
+  g.fillStyle="#0a0a24"; g.fillRect(0,0,320,60);
+  g.fillStyle="#101034"; g.fillRect(0,60,320,30);
+  g.fillStyle="#181844"; g.fillRect(0,90,320,30);
+  // estrellas (parpadeo)
+  for (const [sx,sy,ph] of STARS){
+    const tw = Math.sin(t/700 + ph*20) > -0.6;
+    g.fillStyle = tw ? "#cfd6ff" : "#5a5a8a";
+    g.fillRect(sx,sy,1,1);
+  }
+  // luna pixelada
+  moonAt(258,26,13,t);
+  // mar
+  g.fillStyle="#123058"; g.fillRect(0,120,320,22);
+  g.fillStyle="#1a4070";
+  for (let i=0;i<14;i++){
+    const wx = ((i*29 + Math.floor(t/160)) % 340) - 10;
+    g.fillRect(wx, 124 + (i%4)*4, 12, 1);
+  }
+  // reflejo de luna
+  g.fillStyle="#31537f";
+  for (let i=0;i<5;i++)
+    g.fillRect(252 + ((Math.floor(t/300)+i)%3)*2, 123+i*4, 10-i, 1);
+  // muelle de tablones
+  g.fillStyle="#5a3a22"; g.fillRect(0,142,320,38);
+  g.fillStyle="#432a18";
+  for (let y=142; y<180; y+=9) g.fillRect(0,y,320,2);
+  for (let x=8; x<320; x+=36) g.fillRect(x,144,2,36);
+  g.fillStyle="#6b4a2c"; g.fillRect(0,142,320,2);
+  // postes de amarre
+  post(20,120); post(300,118);
+  // palmera silueta
+  palm(36,142);
+}
+
+function moonAt(cx,cy,r,t){
+  for (let dy=-r;dy<=r;dy++) for (let dx=-r;dx<=r;dx++){
+    if (dx*dx+dy*dy<=r*r){
+      g.fillStyle = (dx*dx+dy*dy > r*r-14) ? "#cfc890" : "#efe8b0";
+      g.fillRect(cx+dx,cy+dy,1,1);
+    }
+  }
+  g.fillStyle="#d8d09a";
+  g.fillRect(cx-4,cy-3,3,2); g.fillRect(cx+2,cy+4,4,2); g.fillRect(cx-1,cy+1,2,2);
+}
+
+function post(x,top){
+  g.fillStyle="#3a2412"; g.fillRect(x,top,6,142-top+6);
+  g.fillStyle="#241608"; g.fillRect(x,top,6,3);
+}
+
+function palm(x,base){
+  g.fillStyle="#141426";
+  // tronco curvado
+  for (let i=0;i<9;i++) g.fillRect(x + Math.floor(i*1.2), base-10-i*9, 5, 10);
+  const tx = x+12, ty = base-92;
+  // frondas
+  const F=[[1,0],[1,-1],[0,-1],[-1,-1],[-1,0]];
+  for (const [fx,fy] of F){
+    for (let i=0;i<7;i++)
+      g.fillRect(tx + fx*i*3, ty + fy*i*2 + (fx===0? -i:i>3?2:0), 4, 2);
+  }
+  // cocos
+  g.fillRect(tx-1,ty+1,3,3); g.fillRect(tx+3,ty+2,3,3);
+}
+
+/* --- personajes ------------------------------------------- */
+function R(px,py,w,h,c){ g.fillStyle=c; g.fillRect(px,py,w,h); }
+
+function drawPirate(x, pal, pose, flip, t){
+  g.save();
+  g.translate(x, GROUND);
+  if (flip) g.scale(-1,1);
+  const bob = pose==="idle" ? Math.round(Math.sin(t/350))/1 : 0;
+  if (pose==="attack") g.translate(8,0);
+  if (pose==="hit")    g.translate(-6,0);
+  g.translate(0,bob);
+
+  const P = pal;
+  // botas
+  R(-8,-4,7,4,P.boot); R(1,-4,7,4,P.boot);
+  // piernas
+  R(-7,-20,6,16,P.pant); R(1,-20,6,16,P.pant);
+  // cinturón
+  R(-8,-23,16,3,P.belt);
+  R(-2,-23,3,3,"#c9a227"); // hebilla
+  // torso
+  R(-8,-38,16,15,P.shirt);
+  if (P.stripe) for (let sy=-37; sy<-24; sy+=4) R(-8,sy,16,2,P.stripe);
+  // brazo trasero
+  R(-11,-37,3,10,P.shirt); R(-11,-27,3,3,P.skin);
+  // cabeza
+  const hy = pose==="hit" ? -50 : -52;
+  R(-6,hy,12,12,P.skin);
+  // pelo o pañuelo
+  if (P.band){
+    R(-7,hy-3,14,5,P.band); R(-7,hy+2,2,4,P.band);
+    R(-9,hy,3,2,P.band); // nudo
+    R(-7,hy+6,2,8,P.hair);
+  } else {
+    R(-7,hy-4,14,6,P.hair); R(-7,hy+2,3,7,P.hair);
+  }
+  // cara
+  R(2,hy+4,2,2,"#141420");            // ojo
+  R(1,hy+9,4,1,"#7a3b2e");            // boca
+  if (pose==="hit") R(0,hy+8,4,2,"#7a3b2e"); // boca abierta
+
+  // brazo delantero + espada según pose
+  const steel="#dfe6f2", edge="#f6faff", gold="#c9a227";
+  if (pose==="idle"){
+    R(4,-37,3,9,P.shirt); R(5,-29,3,3,P.skin);
+    R(6,-31,2,6,gold);
+    for (let i=0;i<8;i++) R(8+i*2,-28+i,3,2, i%3?steel:edge);
+  } else if (pose==="attack"){
+    R(5,-37,9,3,P.shirt); R(13,-38,3,4,P.skin);
+    R(15,-40,2,8,gold);
+    R(17,-37,17,2,steel); R(17,-36,17,1,edge); R(34,-37,2,2,edge);
+  } else if (pose==="hit"){
+    R(4,-42,3,8,P.shirt); R(4,-45,3,3,P.skin);   // brazo arriba
+    R(6,-30,2,5,gold);
+    for (let i=0;i<7;i++) R(7+i,-26+i*2,2,3, i%3?steel:edge); // espada caída
+  } else if (pose==="win"){
+    R(5,-40,3,-0+9,P.shirt); R(5,-43,3,3,P.skin);
+    R(4,-45,6,2,gold);
+    R(5,-62,3,17,steel); R(6,-62,1,17,edge); R(5,-64,3,2,edge);
+  }
+  g.restore();
+}
+
+function drawSpark(t){
+  if (!world.spark) return;
+  const age = t - world.spark.t;
+  if (age > 260){ world.spark = null; return; }
+  const {x,y} = world.spark;
+  const r = 2 + age/45;
+  g.fillStyle = age<130 ? "#ffffff" : "#ffd23e";
+  const pts = [[r,0],[-r,0],[0,r],[0,-r],[r*0.7,r*0.7],[-r*0.7,-r*0.7],[r*0.7,-r*0.7],[-r*0.7,r*0.7]];
+  for (const [dx,dy] of pts) g.fillRect(Math.round(x+dx), Math.round(y+dy), 2, 2);
+}
+
+function frame(t){
+  drawScene(t);
+  // ventaja: el que gana empuja al otro
+  const shift = (world.pScore - world.eScore) * 11;
+  drawPirate(world.enemy.x + shift, world.enemy.pal, world.enemy.pose, true, t+400);
+  drawPirate(world.player.x + shift, world.player.pal, world.player.pose, false, t);
+  drawSpark(t);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ============================================================
+   SONIDO — WebAudio, chip retro
+   ============================================================ */
+let AC = null;
+function audio(){ if (!AC) try{ AC = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} return AC; }
+function beep(freq, dur, type, vol, when){
+  const ac = audio(); if (!ac) return;
+  const o = ac.createOscillator(), ga = ac.createGain();
+  o.type = type||"square"; o.frequency.value = freq;
+  ga.gain.setValueAtTime(vol||0.08, ac.currentTime+(when||0));
+  ga.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime+(when||0)+dur);
+  o.connect(ga); ga.connect(ac.destination);
+  o.start(ac.currentTime+(when||0)); o.stop(ac.currentTime+(when||0)+dur+0.02);
+}
+const sfx = {
+  talk(){ beep(220+Math.random()*80, .05, "square", .03); },
+  clang(){ beep(2400,.09,"square",.05); beep(3100,.14,"sawtooth",.04,.02); beep(1700,.2,"triangle",.05,.04); },
+  hit(){ beep(140,.18,"sawtooth",.09); beep(90,.25,"square",.08,.05); },
+  step(){ beep(90,.06,"square",.05); },
+  win(){ [523,659,784,1047].forEach((f,i)=>beep(f,.16,"square",.06,i*.13)); },
+  lose(){ [392,330,262,196].forEach((f,i)=>beep(f,.2,"square",.06,i*.16)); },
+  learn(){ beep(880,.09,"square",.05); beep(1318,.15,"square",.05,.09); },
+};
+
+/* ============================================================
+   UI — bocadillos SCUMM y panel de diálogo
+   ============================================================ */
+const overlay = document.getElementById("overlay");
+const choicesEl = document.getElementById("choices");
+const stLeft = document.getElementById("st-left");
+const stRight = document.getElementById("st-right");
+
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+function charScreenX(who){
+  const shift = (world.pScore - world.eScore) * 11;
+  return (who==="player" ? world.player.x : world.enemy.x) + shift;
+}
+
+function say(who, text, holdMs){
+  const div = document.createElement("div");
+  div.className = "speech";
+  div.textContent = text;
+  div.style.color = who==="player" ? "#ffffff" : "#ff8fe8";
+  const x = charScreenX(who);
+  div.style.left = (x/320*100) + "%";
+  div.style.top  = ((GROUND-64)/180*100) + "%";
+  overlay.appendChild(div);
+  sfx.talk();
+  const ms = holdMs || Math.max(1900, 55*text.length + 900);
+  return sleep(ms).then(()=>div.remove());
+}
+
+function toast(text, ms){
+  const div = document.createElement("div");
+  div.className = "toast";
+  div.textContent = text;
+  overlay.appendChild(div);
+  return sleep(ms||2200).then(()=>div.remove());
+}
+
+function setStatus(enemyName){
+  stLeft.textContent  = PLAYER_NAME.toUpperCase()+" "+"⚔".repeat(world.pScore)+"·".repeat(WIN_SCORE-world.pScore);
+  stRight.textContent = "⚔".repeat(world.eScore)+"·".repeat(WIN_SCORE-world.eScore)+" "+enemyName.toUpperCase();
+}
+
+function clearChoices(){ choicesEl.innerHTML=""; }
+
+function hint(text){
+  clearChoices();
+  const d = document.createElement("div");
+  d.className = "hint";
+  d.textContent = text;
+  choicesEl.appendChild(d);
+}
+
+let kbHandler = null;
+function choose(options){
+  return new Promise(resolve=>{
+    clearChoices();
+    options.forEach((op,idx)=>{
+      const d = document.createElement("div");
+      d.className = "opt";
+      d.textContent = op.text;
+      d.onclick = ()=>{ cleanup(); resolve(op); };
+      choicesEl.appendChild(d);
+    });
+    kbHandler = ev=>{
+      const n = parseInt(ev.key,10);
+      if (n>=1 && n<=options.length){ cleanup(); resolve(options[n-1]); }
+    };
+    window.addEventListener("keydown", kbHandler);
+    function cleanup(){
+      window.removeEventListener("keydown", kbHandler);
+      kbHandler = null;
+      clearChoices();
+    }
+  });
+}
+
+const shuffle = a => { a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+const pick = a => a[Math.floor(Math.random()*a.length)];
+
+/* ============================================================
+   ANIMACIONES DE COMBATE
+   ============================================================ */
+function pose(who, p){ world[who].pose = p; }
+
+async function clash(attacker){
+  // ataque bloqueado: chispa entre ambos
+  pose(attacker,"attack");
+  await sleep(240);
+  const shift = (world.pScore - world.eScore) * 11;
+  world.spark = { x:160+shift, y:GROUND-38, t:performance.now() };
+  sfx.clang();
+  const defender = attacker==="player" ? "enemy" : "player";
+  pose(defender,"attack");
+  await sleep(380);
+  pose(attacker,"idle"); pose(defender,"idle");
+}
+
+async function strike(attacker){
+  // golpe conectado: el defensor encaja
+  const defender = attacker==="player" ? "enemy" : "player";
+  pose(attacker,"attack");
+  await sleep(240);
+  const shift = (world.pScore - world.eScore) * 11;
+  world.spark = { x:(defender==="player"? world.player.x+14 : world.enemy.x-14)+shift, y:GROUND-36, t:performance.now() };
+  sfx.hit();
+  pose(defender,"hit");
+  await sleep(620);
+  pose(attacker,"idle"); pose(defender,"idle");
+}
+
+/* ============================================================
+   LÓGICA DEL DUELO
+   ============================================================ */
+function defenseOptions(correctIdx){
+  const opts = [];
+  for (const k of known.comebacks) opts.push({ text:INSULTS[k].c, ok:k===correctIdx });
+  if (!known.comebacks.has(correctIdx)){
+    // aún no la conoces: no aparece; solo puedes fallar (y aprenderla)
+  }
+  for (const d of shuffle(DECOYS).slice(0,2)) opts.push({ text:d, ok:false });
+  return shuffle(opts);
+}
+
+function attackOptions(){
+  return shuffle([...known.insults]).map(k=>({ text:INSULTS[k].i, idx:k }));
+}
+
+function enemyPicksInsult(){
+  const unknown = INSULTS.map((_,i)=>i).filter(i=>!known.comebacks.has(i));
+  if (unknown.length && Math.random()<0.6) return pick(unknown);
+  return Math.floor(Math.random()*INSULTS.length);
+}
+
+async function learn(idx){
+  if (known.comebacks.has(idx)) return;
+  known.comebacks.add(idx);
+  known.insults.add(idx);
+  sfx.learn();
+  await toast("Has aprendido un insulto nuevo (y su respuesta) para el próximo asalto.", 2600);
+}
+
+async function duel(gid, enemy){
+  world.pScore = 0; world.eScore = 0;
+  world.enemy.pal = enemy.pal;
+  pose("player","idle"); pose("enemy","idle");
+  setStatus(enemy.name);
+
+  hint("...");
+  await say("enemy", enemy.intro);                        if (gid!==gameGen) return null;
+  await say("player","Me llamo "+PLAYER_NAME+" Threepwood, ¡y quiero ser un pirata!"); if (gid!==gameGen) return null;
+
+  let attacker = "enemy";
+
+  while (world.pScore < WIN_SCORE && world.eScore < WIN_SCORE){
+    if (gid!==gameGen) return null;
+
+    if (attacker==="enemy"){
+      const idx = enemyPicksInsult();
+      hint("...");
+      await say("enemy", INSULTS[idx].i);                 if (gid!==gameGen) return null;
+      const opt = await choose(defenseOptions(idx));      if (gid!==gameGen) return null;
+      hint("...");
+      await say("player", opt.text);                      if (gid!==gameGen) return null;
+      if (opt.ok){
+        await clash("enemy");
+        world.pScore++; setStatus(enemy.name);
+        await say("enemy", pick(["¡Grr!","¡Maldición!","Suerte de principiante..."]), 1300);
+        attacker = "player";
+      } else {
+        await strike("enemy");
+        world.eScore++; setStatus(enemy.name);
+        await say("enemy", pick(["¡Ja!","¡Toma ya!","¿Eso es todo?"]), 1300);
+        await learn(idx);                                  if (gid!==gameGen) return null;
+      }
+    } else {
+      const opt = await choose(attackOptions());          if (gid!==gameGen) return null;
+      hint("...");
+      await say("player", INSULTS[opt.idx].i);            if (gid!==gameGen) return null;
+      if (Math.random() < enemy.skill){
+        await say("enemy", INSULTS[opt.idx].c);           if (gid!==gameGen) return null;
+        await clash("player");
+        await say("player", pick(["Eh... esa era buena.","¡Ha tenido suerte!"]), 1400);
+        attacker = "enemy";
+      } else {
+        await say("enemy", pick(["Eh... ¿tu cara?","...","¡Espera, me la sé!"]), 1500);
+        if (gid!==gameGen) return null;
+        await strike("player");
+        world.pScore++; setStatus(enemy.name);
+      }
+    }
+  }
+
+  const playerWon = world.pScore >= WIN_SCORE;
+  hint("...");
+  if (playerWon){
+    pose("player","win"); pose("enemy","hit");
+    sfx.win();
+    await say("enemy", enemy.lose);                       if (gid!==gameGen) return null;
+  } else {
+    pose("enemy","win"); pose("player","hit");
+    sfx.lose();
+    await say("enemy", enemy.win);                        if (gid!==gameGen) return null;
+  }
+  pose("player","idle"); pose("enemy","idle");
+  return playerWon;
+}
+
+/* ============================================================
+   BUCLE PRINCIPAL
+   ============================================================ */
+async function main(gid){
+  world.enemyIdx = 0;
+  while (true){
+    if (gid!==gameGen) return;
+    const enemy = ENEMIES[world.enemyIdx];
+
+    if (world.enemyIdx>0){
+      await toast("Un nuevo contrincante se acerca: "+enemy.name, 2400);
+      if (gid!==gameGen) return;
+    }
+
+    const won = await duel(gid, enemy);
+    if (won===null) return;
+
+    if (won){
+      world.enemyIdx++;
+      if (world.enemyIdx >= ENEMIES.length){
+        await say("player","¡Soy el mejor espadachín de todo Mêlée Island™!", 2600);
+        if (gid!==gameGen) return;
+        const op = await choose([
+          { text:"Jugar otra vez (conservas los insultos aprendidos)", again:true },
+          { text:"Contemplar la puesta de luna con aire triunfal", again:false },
+        ]);
+        if (gid!==gameGen) return;
+        if (!op.again){
+          hint("FIN — Recarga la página para volver a jugar. Nunca pagues más de 20 dólares por un videojuego.");
+          return;
+        }
+        world.enemyIdx = 0;
+      }
+    } else {
+      await say("player","Vaya. Creo que necesito practicar más mis insultos.", 2200);
+      if (gid!==gameGen) return;
+      const op = await choose([
+        { text:"Exigir la revancha ("+enemy.name+")", retry:true },
+        { text:"Huir corriendo como un cobarde (empezar de cero)", retry:false },
+      ]);
+      if (gid!==gameGen) return;
+      if (!op.retry) world.enemyIdx = 0;
+    }
+  }
+}
+
+/* ============================================================
+   ARRANQUE
+   ============================================================ */
+const titleEl = document.getElementById("title");
+function start(){
+  if (world.started) return;
+  world.started = true;
+  audio();
+  sfx.win();
+  titleEl.style.display = "none";
+  gameGen++;
+  main(gameGen);
+}
+titleEl.addEventListener("click", start);
+window.addEventListener("keydown", ev=>{ if(!world.started && (ev.key===" "||ev.key==="Enter")) start(); });
+hint("");
+</script>
+</body>
+</html>
